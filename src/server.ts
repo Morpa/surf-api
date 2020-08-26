@@ -1,41 +1,88 @@
-import 'reflect-metadata';
+import './utils/module-alias';
+import { Server } from '@overnightjs/core';
+import * as database from '@src/database';
+import bodyParser from 'body-parser';
 import cors from 'cors';
-import express, { Request, Response, NextFunction } from 'express';
-import 'express-async-errors';
+import { Application } from 'express';
+import expressPino from 'express-pino-logger';
+import * as http from 'http';
 
-import 'dotenv/config';
-import './database';
+import { BeachesController } from './controllers/beaches';
+import { ForecastController } from './controllers/forecast';
+import { UsersController } from './controllers/users';
+import logger from './logger';
 
-import uploadConfig from './config/upload';
-import AppError from './errors/AppError';
-import routes from './routes';
+export class SetupServer extends Server {
+  private server?: http.Server;
 
-const app = express();
-
-app.use(cors());
-
-app.use(express.json());
-
-app.use('/files', express.static(uploadConfig.directory));
-
-app.use(routes);
-
-app.use((err: Error, request: Request, response: Response, _: NextFunction) => {
-  if (err instanceof AppError) {
-    return response.status(err.statusCode).json({
-      status: 'error',
-      message: err.message,
-    });
+  /*
+   * same as this.port = port, declaring as private here will
+   * add the port variable to the SetupServer instance
+   */
+  constructor(private port = 3000) {
+    super();
   }
 
-  console.error(err);
+  /*
+   * We use a different method to init instead of using the constructor
+   * this way we allow the server to be used in tests and normal initialization
+   */
+  public async init(): Promise<void> {
+    this.setupExpress();
+    this.setupControllers();
+    await this.databaseSetup();
+  }
 
-  return response.status(500).json({
-    status: 'error',
-    message: 'Internal server error',
-  });
-});
+  private setupExpress(): void {
+    this.app.use(bodyParser.json());
+    this.app.use(
+      expressPino({
+        logger,
+      })
+    );
+    this.app.use(
+      cors({
+        origin: '*',
+      })
+    );
+  }
 
-app.listen(process.env.PORT, () => {
-  console.log(`🚀  Server started on port ${process.env.PORT}!`);
-});
+  private setupControllers(): void {
+    const forecastController = new ForecastController();
+    const beachesController = new BeachesController();
+    const usersController = new UsersController();
+    this.addControllers([
+      forecastController,
+      beachesController,
+      usersController,
+    ]);
+  }
+
+  public getApp(): Application {
+    return this.app;
+  }
+
+  private async databaseSetup(): Promise<void> {
+    await database.connect();
+  }
+
+  public async close(): Promise<void> {
+    await database.close();
+    if (this.server) {
+      await new Promise((resolve, reject) => {
+        this.server?.close(err => {
+          if (err) {
+            return reject(err);
+          }
+          resolve();
+        });
+      });
+    }
+  }
+
+  public start(): void {
+    this.server = this.app.listen(this.port, () => {
+      logger.info(`Server listening on port: ${this.port}`);
+    });
+  }
+}

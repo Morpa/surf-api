@@ -1,24 +1,15 @@
-const { pathsToModuleNameMapper } = require('ts-jest/utils');
-const { compilerOptions } = require('./tsconfig.json');
+const { resolve } = require('path');
 
+const root = resolve(__dirname);
 module.exports = {
-  clearMocks: true,
-
-  collectCoverage: true,
-
-  collectCoverageFrom: ['<rootDir>/src/modules/**/services/*.ts'],
-
-  coverageDirectory: 'coverage',
-
-  coverageReporters: ['text-summary', 'lcov'],
-
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
-    prefix: '<rootDir>/src/',
-  }),
-
-  preset: 'ts-jest',
-
+  rootDir: root,
+  displayName: 'root-tests',
+  testMatch: ['<rootDir>/src/**/*.test.ts'],
   testEnvironment: 'node',
-
-  testMatch: ['**/*.spec.ts'],
+  clearMocks: true,
+  preset: 'ts-jest',
+  moduleNameMapper: {
+    '@src/(.*)': '<rootDir>/src/$1',
+    '@test/(.*)': '<rootDir>/test/$1',
+  },
 };
