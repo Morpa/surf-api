@@ -2,8 +2,7 @@
   "env": {
     "es6": true,
     "node": true,
-    "jest": true,
-    "root": true
+    "jest": true
   },
   "extends": [
     "airbnb-base",
@@ -22,6 +21,7 @@
   },
   "plugins": ["@typescript-eslint", "prettier", "eslint-plugin-import-helpers"],
   "rules": {
+    "no-return-await": "off",
     "prettier/prettier": "error",
     "@typescript-eslint/camelcase": "off",
     "no-useless-constructor": "off",
